@@ -7,11 +7,11 @@ const TABLE_NAME = process.env.TABLE_NAME!;
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}'); 
-    const { userId, bookId, ...fieldsToUpdate } = body; 
-    if (!userId || !bookId) {
+    const { movieId, title, ...fieldsToUpdate } = body; 
+    if (!movieId || !title) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: 'Missing userId or bookId in request body' }),
+        body: JSON.stringify({ error: 'Missing movieId or title in request body' }),
       };
     }
 
@@ -38,7 +38,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     const result = await dynamo.update({
       TableName: TABLE_NAME, 
-      Key: { userId, bookId }, 
+      Key: { movieId, title }, 
       UpdateExpression: `set ${updateParts.join(', ')}`, 
       ExpressionAttributeNames: expressionAttributeNames,
       ExpressionAttributeValues: expressionAttributeValues,
@@ -47,12 +47,12 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: 'Book updated', updatedItem: result.Attributes }),
+      body: JSON.stringify({ message: 'Movie updated', updatedItem: result.Attributes }),
     };
   } catch (err) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to update book', detail: (err as Error).message}),
+      body: JSON.stringify({ error: 'Failed to update movie', detail: (err as Error).message}),
     };
   }
 };
