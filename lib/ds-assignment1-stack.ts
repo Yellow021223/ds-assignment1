@@ -5,6 +5,8 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as apig from "aws-cdk-lib/aws-apigateway";
 import * as custom from 'aws-cdk-lib/custom-resources'
+import { generateBatch } from '../shared/util';
+import { Movies } from '../seed/Movies';
 
 export class DsAssignment1Stack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -31,10 +33,8 @@ export class DsAssignment1Stack extends cdk.Stack {
       }
     })
 
-    //赋予权限
     table.grantWriteData(postMovieFn);
 
-    //创建API权限管理
     const api = new apig.RestApi(this, 'MoviesApi', {
       restApiName: "Movies Service",
       description: 'movies Api',
@@ -50,10 +50,8 @@ export class DsAssignment1Stack extends cdk.Stack {
       apiKeySourceType: apig.ApiKeySourceType.HEADER,
     })
 
-    //创建 API Key
     const apiKey = api.addApiKey('MoviesApiKey');
 
-    //创建使用计划
     const plan = api.addUsagePlan("UsagePlan",{
       name: 'BasicUsagePlan',
       throttle: { rateLimit: 10, burstLimit: 2 },
@@ -69,5 +67,22 @@ export class DsAssignment1Stack extends cdk.Stack {
       apiKeyRequired: true,
     });
 
+
+    new custom.AwsCustomResource(this, 'SeedMoviesData', {
+      onCreate: {
+
+        service: 'DynamoDB', 
+        action: 'batchWriteItem',
+        parameters: {
+          RequestItems: {
+            [table.tableName]: generateBatch(Movies), 
+          },
+        },
+        physicalResourceId: custom.PhysicalResourceId.of('SeedMoviesData'), 
+      },
+      policy: custom.AwsCustomResourcePolicy.fromSdkCalls({
+        resources: [table.tableArn],
+      }),
+    });
   }
 }
