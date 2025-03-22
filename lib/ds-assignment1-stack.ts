@@ -68,10 +68,30 @@ export class DsAssignment1Stack extends cdk.Stack {
       },
     });
 
+    const translateMovieFn = new lambdanode.NodejsFunction(this, 'TranslateMovieFunction', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      architecture: lambda.Architecture.ARM_64,
+      entry: `${__dirname}/../lambdas/translation.ts`,
+      timeout: cdk.Duration.seconds(10),
+      memorySize: 128,
+      environment: {
+        TABLE_NAME: table.tableName,
+        REGION: 'eu-west-1',
+      },
+    });
+
     table.grantWriteData(postMovieFn);
     table.grantReadData(getMoviesFn);
     table.grantReadData(getMovieFn);
     table.grantWriteData(updateMovieFn);
+    table.grantReadWriteData(translateMovieFn);
+
+    translateMovieFn.addToRolePolicy( 
+      new cdk.aws_iam.PolicyStatement({ 
+        actions: ['translate:TranslateText'], 
+        resources: ['*'], 
+      })
+    );
 
     const api = new apig.RestApi(this, 'MoviesApi', {
       restApiName: "Movies Service",
@@ -118,6 +138,12 @@ export class DsAssignment1Stack extends cdk.Stack {
       apiKeyRequired: true,
     });
 
+    const translation = movies
+    .addResource('{movieId}')
+    .addResource('{title}')
+    .addResource('translation');
+
+  translation.addMethod('GET', new apig.LambdaIntegration(translateMovieFn));
     new custom.AwsCustomResource(this, 'SeedMoviesData', {
       onCreate: {
 
