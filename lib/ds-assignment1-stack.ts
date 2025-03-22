@@ -20,7 +20,6 @@ export class DsAssignment1Stack extends cdk.Stack {
       tableName:'Movies',
     });
 
-    //创建post用于添加电影
     const postMovieFn = new lambdanode.NodejsFunction(this, 'PostMoviesFunction', {
       runtime:lambda.Runtime.NODEJS_18_X,
       architecture: lambda.Architecture.ARM_64,
@@ -33,7 +32,20 @@ export class DsAssignment1Stack extends cdk.Stack {
       }
     })
 
+    const getMoviesFn = new lambdanode.NodejsFunction(this, 'GetMoviesFunction', {
+      runtime:lambda.Runtime.NODEJS_18_X,
+      architecture: lambda.Architecture.ARM_64,
+      entry: `${__dirname}/../lambdas/getMovies.ts`,
+      timeout: cdk.Duration.seconds(10),
+      memorySize:128,
+      environment:{
+        TABLE_NAME: table.tableName,
+        REGION: 'eu-west-1'
+      }
+    })
+
     table.grantWriteData(postMovieFn);
+    table.grantReadData(getMoviesFn);
 
     const api = new apig.RestApi(this, 'MoviesApi', {
       restApiName: "Movies Service",
@@ -66,6 +78,10 @@ export class DsAssignment1Stack extends cdk.Stack {
     movies.addMethod('POST', new apig.LambdaIntegration(postMovieFn),{
       apiKeyRequired: true,
     });
+
+    movies.addMethod('GET', new apig.LambdaIntegration(getMoviesFn),{
+      apiKeyRequired: true,
+    })
 
 
     new custom.AwsCustomResource(this, 'SeedMoviesData', {
