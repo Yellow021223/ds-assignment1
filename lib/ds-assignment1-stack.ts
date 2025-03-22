@@ -44,8 +44,21 @@ export class DsAssignment1Stack extends cdk.Stack {
       }
     })
 
+    const getMovieFn = new lambdanode.NodejsFunction(this, 'GetMovieFunction', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      architecture: lambda.Architecture.ARM_64,
+      entry: `${__dirname}/../lambdas/getMovie.ts`,
+      timeout: cdk.Duration.seconds(10),
+      memorySize: 128,
+      environment: {
+        TABLE_NAME: table.tableName,
+        REGION: 'eu-west-1',
+      },
+    });
+
     table.grantWriteData(postMovieFn);
     table.grantReadData(getMoviesFn);
+    table.grantReadData(getMovieFn)
 
     const api = new apig.RestApi(this, 'MoviesApi', {
       restApiName: "Movies Service",
@@ -83,6 +96,10 @@ export class DsAssignment1Stack extends cdk.Stack {
       apiKeyRequired: true,
     })
 
+    const MovieById = movies.addResource('movie').addResource('{movieId}');
+    MovieById.addMethod('GET', new apig.LambdaIntegration(getMovieFn), {
+      apiKeyRequired: true,
+    });
 
     new custom.AwsCustomResource(this, 'SeedMoviesData', {
       onCreate: {
